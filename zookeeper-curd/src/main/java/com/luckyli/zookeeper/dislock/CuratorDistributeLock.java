@@ -23,31 +23,17 @@ public class CuratorDistributeLock implements Watcher {
     private static String ROOT_LOCK="/locks"; //定义根节点
     private CountDownLatch countDownLatch; //
 
-    public CuratorDistributeLock() {
-        try {
-            zk = new ZooKeeper(CONNECTION_ADDRESS,4000,this);
-            //判断根节点是否存在
-            Stat stat=zk.exists(ROOT_LOCK,false);
-            if(stat==null){
-                zk.create(ROOT_LOCK,"0".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        }
-    }
 
     public static void main(String[] args) throws Exception {
 
+        //初始化curator
         CuratorFramework curatorFramework = CuratorFrameworkFactory.builder().connectString(CONNECTION_ADDRESS)
                 .sessionTimeoutMs(4000)
                 .retryPolicy(new ExponentialBackoffRetry(1000,3))
                 .namespace("curator").build();
-
+        //启动curator
         curatorFramework.start();
+        //保证每次执行 node节点都是空的
         curatorFramework.delete().deletingChildrenIfNeeded().forPath(ROOT_LOCK);
         curatorFramework.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(ROOT_LOCK,"liyanchao".getBytes());
 
@@ -55,9 +41,10 @@ public class CuratorDistributeLock implements Watcher {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
+                    //curator提供的一种锁:进程互斥锁
                     InterProcessMutex lock = new InterProcessMutex(curatorFramework,ROOT_LOCK);
                     try {
-                        if (lock.acquire(20, TimeUnit.SECONDS)) {
+                        if (lock.acquire(20, TimeUnit.SECONDS)) {//阻塞等待获取锁
                             System.out.println(Thread.currentThread().getName() + "-> : 获得了分布式锁");
                         }
                     } catch (Exception e) {
@@ -65,7 +52,7 @@ public class CuratorDistributeLock implements Watcher {
                     }finally {
                         try {
                             System.out.println(Thread.currentThread().getName() + "-> : 释放了分布式锁");
-                            lock.release();
+                            lock.release();//释放锁
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
