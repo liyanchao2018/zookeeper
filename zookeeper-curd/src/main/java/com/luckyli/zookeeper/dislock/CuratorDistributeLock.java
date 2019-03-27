@@ -27,7 +27,7 @@ public class CuratorDistributeLock implements Watcher {
     public static void main(String[] args) throws Exception {
 
         //初始化curator
-        CuratorFramework curatorFramework = CuratorFrameworkFactory.builder().connectString(CONNECTION_ADDRESS)
+        final CuratorFramework curatorFramework = CuratorFrameworkFactory.builder().connectString(CONNECTION_ADDRESS)
                 .sessionTimeoutMs(4000)
                 .retryPolicy(new ExponentialBackoffRetry(1000,3))
                 .namespace("curator").build();
